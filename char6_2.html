@@ -971,6 +971,9 @@
     if (x + TW > vw - GAP) x = e.clientX - TW - GAP;
     if (y < GAP) y = e.clientY + GAP;
     if (y + TH > vh - GAP) y = vh - TH - GAP;
+    // Clamp into viewport — the flips above can still overflow on narrow screens
+    x = Math.min(Math.max(x, GAP), Math.max(GAP, vw - TW - GAP));
+    y = Math.min(Math.max(y, GAP), Math.max(GAP, vh - TH - GAP));
     ttBox.style.left = x + 'px';
     ttBox.style.top  = y + 'px';
   }

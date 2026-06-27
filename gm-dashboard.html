@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cogs &amp; the Zeitgeist — GM Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121212; --col-bg:#161616; --panel:#1e1e1e; --panel2:#242424;
+  --border:#333; --border2:#3a3a3a; --accent:#c8922a; --accent-dim:#8c6620;
+  --neutral:#2c2c2c; --neutral-clock:#2c2c2c; --era-empty:#2c2c2c;
+  --tl-empty:#444; --text:#dcdcdc; --muted:#888; --muted2:#666;
+  --red:#c62828; --green:#2e7d32;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Rajdhani',-apple-system,Segoe UI,Roboto,sans-serif;
+  font-weight:400; overflow:hidden; font-size:14px;
+}
+button{font-family:inherit; color:inherit; cursor:pointer;}
+input{font-family:inherit;}
+
+/* ---- Generic small controls ---- */
+.btn{
+  background:var(--panel2); border:1px solid var(--border2); color:var(--text);
+  padding:3px 9px; border-radius:4px; font-size:12px; font-weight:600;
+  letter-spacing:.4px; transition:background .2s,border-color .2s;
+}
+.btn:hover{background:#2f2f2f; border-color:var(--accent-dim);}
+.btn:disabled{opacity:.35; cursor:not-allowed;}
+.btn.accent{border-color:var(--accent-dim); color:var(--accent);}
+.btn.accent:hover{background:#332a16;}
+.btn.sm{padding:2px 6px; font-size:11px;}
+.warn-text{color:var(--accent); font-size:12px;}
+
+/* ---- Layout ---- */
+#topbar{
+  height:36px; display:flex; align-items:center; gap:10px; padding:0 12px;
+  background:#1c1c1c; border-bottom:1px solid var(--border); flex:0 0 auto;
+}
+#topbar .title{
+  font-weight:600; font-size:14px; letter-spacing:3px; color:var(--muted);
+  text-transform:uppercase;
+}
+#main{display:flex; height:calc(100vh - 36px);}
+.column{height:100%; overflow-y:auto; overflow-x:hidden; background:var(--col-bg);}
+#left{flex:0 0 270px; border-right:1px solid var(--border); padding:8px;}
+#center{flex:1 1 auto; border-right:1px solid var(--border); padding:0; position:relative;}
+#right{flex:0 0 290px; padding:10px;}
+.col-h{
+  font-weight:600; font-size:12px; letter-spacing:2px; color:var(--muted);
+  text-transform:uppercase; margin:4px 0 8px;
+}
+::-webkit-scrollbar{width:9px; height:9px;}
+::-webkit-scrollbar-thumb{background:#333; border-radius:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---- Era cluster ---- */
+#era-cluster{position:relative; width:254px; height:296px; margin:4px auto 0;}
+.timeline-wrap{position:absolute; text-align:center;}
+.timeline-label{font-size:11px; letter-spacing:2px; color:var(--muted); margin-top:2px;}
+.era-node{
+  position:absolute; width:60px; text-align:center; transition:transform .2s;
+  cursor:pointer; z-index:1;
+}
+.era-node .era-svg-wrap{display:inline-block; transition:transform .2s; transform-origin:center center;}
+.era-node .era-name-s{
+  font-size:11px; color:var(--muted); margin-top:1px; line-height:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.era-node:hover{z-index:40;}
+.era-node:hover .era-svg-wrap{transform:scale(1.6);}
+.era-pop{
+  display:none; position:absolute; left:50%; top:100%; transform:translateX(-50%);
+  margin-top:30px; background:#1d1d1d; border:1px solid var(--border2);
+  border-radius:6px; padding:7px 9px; width:150px; z-index:60;
+  box-shadow:0 6px 18px rgba(0,0,0,.6); pointer-events:none;
+}
+.era-node:hover .era-pop{display:block;}
+.era-pop .nm{font-weight:600; font-size:13px; color:var(--text);}
+.era-pop .dt{font-size:11px; color:var(--muted); margin:2px 0 4px;}
+.era-pop .bd{font-size:12px; display:flex; gap:6px; flex-wrap:wrap;}
+.era-pop .bd .d{display:inline-flex; align-items:center; gap:3px;}
+.era-pop .hint{font-size:10px; color:var(--muted2); margin-top:4px; font-style:italic;}
+.era-node.editing{z-index:80;}
+.era-node.editing .era-svg-wrap{transform:scale(2.5);}
+.era-node.editing .era-svg-wrap svg{
+  filter:drop-shadow(0 0 4px var(--accent)); border-radius:50%;
+  outline:2px solid var(--accent); outline-offset:1px;
+}
+.era-edit-panel{
+  position:absolute; left:50%; top:100%; transform:translateX(-50%);
+  margin-top:52px; background:#1d1d1d; border:1px solid var(--accent-dim);
+  border-radius:6px; padding:8px; width:170px; z-index:85; text-align:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.7);
+}
+.era-edit-panel .nm,.era-edit-panel .dt{
+  font-size:13px; cursor:text; padding:2px; border-radius:3px;
+}
+.era-edit-panel .nm{font-weight:600;}
+.era-edit-panel .dt{font-size:11px; color:var(--muted);}
+.era-edit-panel .nm:hover,.era-edit-panel .dt:hover{background:#2a2a2a;}
+.era-edit-panel .ehint{font-size:10px; color:var(--muted2); margin-top:5px;}
+
+/* faction legend */
+#faction-legend{margin-top:14px; border-top:1px solid var(--border); padding-top:8px;}
+.leg-row{display:flex; align-items:center; gap:7px; padding:2px 2px; font-size:13px; color:#bbb;}
+.leg-row .dot{width:10px; height:10px; border-radius:50%; flex:0 0 auto;}
+
+/* ---- Workspace ---- */
+#ws-toolbar{
+  position:sticky; top:0; z-index:30; display:flex; gap:8px; align-items:center;
+  background:#161616; border-bottom:1px solid var(--border); padding:8px 12px;
+}
+#ws-scroll{padding:12px; position:relative;}
+#connector-svg{position:absolute; left:0; top:0; pointer-events:none; z-index:25; overflow:visible;}
+.scene{
+  background:var(--panel); border:1px solid var(--border); border-radius:7px;
+  margin-bottom:14px; position:relative; z-index:10;
+}
+.scene-head{
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  border-bottom:1px solid var(--border); background:#222;
+  border-radius:7px 7px 0 0;
+}
+.scene-head .nm{font-weight:600; font-size:15px; letter-spacing:.5px; cursor:pointer; flex:1;}
+.scene-head .chev{color:var(--muted); font-size:12px;}
+.scene-body{display:flex; flex-wrap:wrap; gap:14px; padding:14px;}
+.scene.collapsed .scene-body{display:none;}
+.standalone-head{
+  font-weight:600; font-size:12px; letter-spacing:2px; color:var(--muted);
+  text-transform:uppercase; margin:6px 2px 10px; border-top:1px solid var(--border); padding-top:10px;
+}
+#standalone-body{display:flex; flex-wrap:wrap; gap:14px; position:relative; z-index:10;}
+.confirm-inline{display:inline-flex; gap:5px; align-items:center; font-size:12px; color:var(--accent);}
+
+/* obstacle clock */
+.oclock{
+  position:relative; width:104px; text-align:center; transition:transform .2s;
+  cursor:default; z-index:10;
+}
+.oclock .oc-svg{display:block; margin:0 auto; transition:transform .2s;}
+.oclock .oc-name{
+  font-size:13px; margin-top:3px; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:104px;
+}
+.oclock .oc-fill{font-size:11px; color:var(--muted);}
+.oclock:hover{z-index:50;}
+/* The popover markup lives inside each clock as a hidden content source; it is
+   cloned into the body-level #float-pop on hover so it can never be clipped by
+   the scrolling column. */
+.oclock-pop{display:none;}
+#float-pop{
+  position:fixed; display:none; background:#202020; border:1px solid var(--border2);
+  border-radius:6px; padding:7px; z-index:150; white-space:nowrap;
+  box-shadow:0 8px 22px rgba(0,0,0,.75);
+}
+#float-pop .row{display:flex; gap:4px; justify-content:center; margin:3px 0;}
+#float-pop .row:first-child{margin-top:0;}
+.oclock.completed .oc-svg{filter:grayscale(.6) brightness(.7);}
+.oclock .complete-badge{
+  position:absolute; top:34px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.7); color:var(--accent); font-weight:600; font-size:11px;
+  padding:2px 6px; border-radius:3px; letter-spacing:1px; pointer-events:none;
+}
+.oclock.linking-source .oc-svg{outline:2px solid var(--accent); border-radius:50%; outline-offset:2px;}
+.oclock.linking-target .oc-svg{outline:2px dashed var(--accent-dim); border-radius:50%; outline-offset:2px; cursor:pointer;}
+.archived-list{margin-top:8px;}
+.arch-row{
+  display:flex; align-items:center; gap:10px; padding:5px 8px; font-size:13px;
+  background:var(--panel); border:1px solid var(--border); border-radius:5px; margin-bottom:5px;
+}
+.arch-row .sw{width:11px; height:11px; border-radius:2px;}
+
+/* clock segment cursor */
+svg.seg-interactive [data-seg]{cursor:pointer;}
+
+/* ---- Right column ---- */
+.r-panel{background:var(--panel); border:1px solid var(--border); border-radius:7px; padding:10px; margin-bottom:12px;}
+.crew-level-panel{text-align:center;}
+.crew-level-panel .lbl{font-size:12px; letter-spacing:2px; color:var(--muted);}
+#crew-level-input{
+  width:80px; text-align:center; font-size:34px; font-weight:600; background:#181818;
+  border:1px solid var(--border2); color:var(--accent); border-radius:6px; margin:4px 0; padding:2px;
+}
+.crew-level-panel .derived{font-size:12px; color:var(--muted);}
+
+.cog{background:var(--panel); border:1px solid var(--border); border-radius:7px; margin-bottom:9px; overflow:hidden;}
+.cog-head{display:flex; align-items:center; gap:8px; padding:7px 9px; cursor:pointer;}
+.cog-head .chev{color:var(--muted); font-size:11px; width:12px;}
+.cog-head .nm{font-weight:600; font-size:15px; flex:0 0 auto; min-width:54px; cursor:text;}
+.cog-mini{display:flex; gap:3px; align-items:center; margin-left:auto;}
+.mini-bar{display:flex; gap:2px;}
+.mini-pip{width:9px; height:9px; border-radius:2px; background:var(--neutral); border:1px solid #3a3a3a;}
+.mini-scars{display:flex; gap:3px; margin-left:5px;}
+.mini-scar{width:8px; height:8px; border-radius:50%; background:#2c2c2c; border:1px solid #444;}
+.mini-scar.on{background:var(--accent);}
+.cog-body{display:none; padding:4px 10px 10px; border-top:1px solid var(--border);}
+.cog.expanded .cog-body{display:block;}
+.clk-block{margin-top:10px;}
+.clk-block .clk-lbl{font-size:12px; letter-spacing:1px; color:var(--muted); display:flex; align-items:center; gap:6px;}
+.box-row-wrap{position:relative; padding-top:18px;}
+.box-row{display:flex; gap:3px; align-items:flex-end;}
+.box-base{position:relative; display:flex; gap:3px;}
+.hbox{
+  width:18px; height:20px; border-radius:3px; background:var(--neutral);
+  border:1px solid #3f3f3f; cursor:pointer; transition:background .15s;
+}
+.hbox.bonus{border-style:dashed; border-color:#5a5a5a;}
+.thresh{
+  position:absolute; bottom:100%; margin-bottom:3px; font-size:9px; color:var(--muted);
+  white-space:nowrap; transform:translateX(-50%); letter-spacing:.3px; line-height:1;
+}
+.scar-row{display:flex; gap:8px; margin-top:6px; align-items:center;}
+.scar{width:15px; height:15px; border-radius:50%; background:#2c2c2c; border:1px solid #555; cursor:pointer;}
+.scar.on{background:var(--accent); border-color:var(--accent);}
+.cog-foot{display:flex; gap:8px; margin-top:12px;}
+
+#chronocraft-panel .ch-thresh{font-size:11px; padding:3px 5px; border-radius:4px; margin-top:3px; color:var(--muted); border:1px solid transparent;}
+#chronocraft-panel .ch-thresh.active{color:var(--accent); border-color:var(--accent-dim); background:#2a2212;}
+#chronocraft-panel .ch-thresh.destroyed.active{color:#fff; background:var(--red); border-color:var(--red);}
+
+/* reference accordion */
+.acc-sec{border:1px solid var(--border); border-radius:6px; margin-bottom:6px; overflow:hidden;}
+.acc-h{
+  background:#202020; padding:7px 10px; cursor:pointer; font-weight:600; font-size:13px;
+  display:flex; justify-content:space-between; letter-spacing:.5px;
+}
+.acc-h .ar{color:var(--muted); font-size:11px;}
+.acc-b{display:none; padding:8px 10px; font-size:12.5px;}
+.acc-sec.open .acc-b{display:block;}
+.acc-b table{width:100%; border-collapse:collapse;}
+.acc-b td,.acc-b th{padding:3px 5px; text-align:left; border-bottom:1px solid #2a2a2a; font-weight:400;}
+.acc-b th{color:var(--muted); font-weight:600; font-size:11px;}
+.acc-b .note{color:var(--muted); font-style:italic; margin-top:5px; font-size:11.5px; line-height:1.35;}
+.ladder{display:flex; gap:4px; align-items:stretch; margin-bottom:6px;}
+.ladder .step{flex:1; text-align:center; font-size:10.5px; padding:6px 2px; background:#202020; border:1px solid var(--border); border-radius:4px;}
+.ladder .step.center{border-color:var(--accent-dim); color:var(--accent);}
+ol.wind{margin:0; padding-left:18px; line-height:1.6;}
+
+/* ---- Modals ---- */
+.modal-back{
+  position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200;
+  display:flex; align-items:center; justify-content:center;
+}
+.modal{
+  background:var(--panel); border:1px solid var(--border2); border-radius:9px;
+  padding:18px; box-shadow:0 10px 40px rgba(0,0,0,.7);
+}
+.modal h2{margin:0 0 12px; font-size:16px; letter-spacing:2px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+.fac-row{display:flex; align-items:center; gap:8px; margin-bottom:7px;}
+.fac-row input[type=color]{width:32px; height:28px; border:1px solid var(--border2); background:none; border-radius:4px; padding:0; cursor:pointer;}
+.fac-row input[type=text]{flex:1; background:#181818; border:1px solid var(--border2); color:var(--text); padding:5px 7px; border-radius:4px; font-size:14px;}
+.fac-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+#notes-area{
+  width:560px; height:440px; background:#101010; color:#cfcfcf; border:1px solid var(--border2);
+  border-radius:6px; padding:10px; font-family:Consolas,Menlo,monospace; font-size:14px; resize:none; line-height:1.5;
+}
+.modal-foot{display:flex; justify-content:flex-end; gap:8px; margin-top:12px; align-items:center;}
+
+/* clock create popover */
+#clock-pop{
+  position:fixed; z-index:210; background:var(--panel); border:1px solid var(--accent-dim);
+  border-radius:8px; padding:14px; width:230px; box-shadow:0 8px 30px rgba(0,0,0,.7);
+}
+#clock-pop label{display:block; font-size:11px; color:var(--muted); letter-spacing:1px; margin:8px 0 3px;}
+#clock-pop input[type=text]{width:100%; background:#181818; border:1px solid var(--border2); color:var(--text); padding:5px 7px; border-radius:4px; font-size:14px;}
+#clock-pop input[type=color]{width:40px; height:28px; border:1px solid var(--border2); background:none; border-radius:4px; padding:0;}
+.seg-ctrl{display:flex; gap:4px;}
+.seg-ctrl button{flex:1; padding:5px 0; background:#1c1c1c; border:1px solid var(--border2); border-radius:4px; color:var(--text); font-weight:600;}
+.seg-ctrl button.sel{background:var(--accent); color:#1a1a1a; border-color:var(--accent);}
+
+.inline-input{background:#101010; border:1px solid var(--accent-dim); color:var(--text); font-family:inherit; font-size:inherit; padding:1px 4px; border-radius:3px; width:auto; min-width:60px;}
+
+#save-warning{
+  display:none; position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+  background:var(--red); color:#fff; padding:8px 16px; border-radius:6px; z-index:500;
+  font-weight:600; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.6);
+}
+.link-label-input{position:absolute; z-index:70;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="title">Cogs &amp; the Zeitgeist — GM Dashboard</span>
+  <span style="flex:1"></span>
+  <button class="btn" data-action="open-setup">Setup</button>
+  <button class="btn" data-action="open-notes">Notes</button>
+</div>
+
+<div id="main">
+  <div id="left" class="column">
+    <div class="col-h">Timeline / Eras</div>
+    <div id="era-cluster"></div>
+    <div id="faction-legend"></div>
+  </div>
+
+  <div id="center" class="column">
+    <div id="ws-toolbar">
+      <button class="btn accent" data-action="new-scene">+ New Scene</button>
+      <button class="btn accent" data-action="new-standalone">+ Standalone Clock</button>
+      <span style="flex:1"></span>
+      <button class="btn" data-action="toggle-archived">Archived</button>
+    </div>
+    <div id="ws-scroll">
+      <svg id="connector-svg"></svg>
+      <div id="scenes-container"></div>
+      <div id="standalone-section">
+        <div class="standalone-head">Standalone</div>
+        <div id="standalone-body"></div>
+      </div>
+      <div id="archived-section" style="display:none;">
+        <div class="standalone-head">Archived Clocks</div>
+        <div id="archived-body" class="archived-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="right" class="column">
+    <div class="r-panel crew-level-panel">
+      <div class="lbl">CREW LEVEL</div>
+      <input type="number" id="crew-level-input" min="1" max="10">
+      <div class="derived" id="crew-derived"></div>
+    </div>
+    <div id="crew-members"></div>
+    <button class="btn accent" data-action="add-cog" style="width:100%; margin-bottom:14px;">+ Add Cog</button>
+    <div class="r-panel" id="chronocraft-panel"></div>
+    <div class="col-h" style="margin-top:14px;">Reference</div>
+    <div id="reference"></div>
+  </div>
+</div>
+
+<div id="save-warning">⚠ Could not save — localStorage unavailable. State will be lost on reload.</div>
+
+<script>
+"use strict";
+(function(){
+
+/* ======================================================================
+   STORAGE LAYER — localStorage is the source of truth
+   ====================================================================== */
+const KEYS={
+  factions:'cogs_factions', eras:'cogs_era_clocks', crewLevel:'cogs_crew_level',
+  crew:'cogs_crew_members', chrono:'cogs_chronocraft', scenes:'cogs_scenes',
+  standalone:'cogs_standalone_clocks', links:'cogs_clock_links',
+  archived:'cogs_archived_clocks', notes:'cogs_notes'
+};
+let saveFailed=false;
+function showSaveWarning(){
+  saveFailed=true;
+  document.getElementById('save-warning').style.display='block';
+}
+function lsGet(key,fallback){
+  try{
+    const raw=localStorage.getItem(key);
+    if(raw===null) return fallback;
+    return JSON.parse(raw);
+  }catch(e){ console.warn('read fail',key,e); return fallback; }
+}
+function lsSet(key,val){
+  try{
+    localStorage.setItem(key,JSON.stringify(val));
+    return true;
+  }catch(e){ console.warn('write fail',key,e); showSaveWarning(); return false; }
+}
+
+/* In-memory mirror; always re-derived from / pushed to localStorage. */
+const state={};
+function loadState(){
+  state.factions   = lsGet(KEYS.factions,null);
+  state.eras       = lsGet(KEYS.eras,null);
+  state.crewLevel  = lsGet(KEYS.crewLevel,null);
+  state.crew       = lsGet(KEYS.crew,null);
+  state.chrono     = lsGet(KEYS.chrono,null);
+  state.scenes     = lsGet(KEYS.scenes,null);
+  state.standalone = lsGet(KEYS.standalone,null);
+  state.links      = lsGet(KEYS.links,null);
+  state.archived   = lsGet(KEYS.archived,null);
+  state.notes      = lsGet(KEYS.notes,null);
+}
+function persist(key){
+  switch(key){
+    case 'factions':   lsSet(KEYS.factions,state.factions); break;
+    case 'eras':       lsSet(KEYS.eras,state.eras); break;
+    case 'crewLevel':  lsSet(KEYS.crewLevel,state.crewLevel); break;
+    case 'crew':       lsSet(KEYS.crew,state.crew); break;
+    case 'chrono':     lsSet(KEYS.chrono,state.chrono); break;
+    case 'scenes':     lsSet(KEYS.scenes,state.scenes); break;
+    case 'standalone': lsSet(KEYS.standalone,state.standalone); break;
+    case 'links':      lsSet(KEYS.links,state.links); break;
+    case 'archived':   lsSet(KEYS.archived,state.archived); break;
+    case 'notes':      lsSet(KEYS.notes,state.notes); break;
+  }
+}
+
+/* ======================================================================
+   DEFAULTS / FIRST LAUNCH
+   ====================================================================== */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+const DEFAULT_FACTIONS=[
+  {id:'1',name:'Faction 1',color:'#e63946'},
+  {id:'2',name:'Faction 2',color:'#457b9d'},
+  {id:'3',name:'Faction 3',color:'#2a9d8f'},
+  {id:'4',name:'Faction 4',color:'#e9c46a'},
+  {id:'5',name:'Faction 5',color:'#9b5de5'}
+];
+const DEFAULT_ERAS=[
+  {name:'Age of Myth',short:'Myth',dates:'2500 BCE – 1000 BCE'},
+  {name:'Age of Empires',short:'Empires',dates:'1000 BCE – 200 CE'},
+  {name:'Age of Faith',short:'Faith',dates:'200 CE – 800 CE'},
+  {name:'Age of Conflict',short:'Conflict',dates:'800 CE – 1300 CE'},
+  {name:'Age of Exploration',short:'Explore',dates:'1300 CE – 1600 CE'},
+  {name:'Age of Revolution',short:'Revolt',dates:'1600 CE – 1900 CE'},
+  {name:'Age of Progress',short:'Progress',dates:'1900 CE – 2100 CE'},
+  {name:'Age of Horizon',short:'Horizon',dates:'2100 CE – 2500 CE'}
+];
+
+/* Distribute 8 segments among factions, each faction gets 1..3 when feasible. */
+function randomSegmentDistribution(factions){
+  const ids=factions.map(f=>f.id);
+  const n=ids.length;
+  const TOTAL=8;
+  const feasible = n>0 && n*1<=TOTAL && n*3>=TOTAL;
+  let counts={};
+  if(feasible){
+    ids.forEach(id=>counts[id]=1);
+    let remaining=TOTAL-n;
+    while(remaining>0){
+      const pool=ids.filter(id=>counts[id]<3);
+      if(pool.length===0) break;
+      const pick=pool[Math.floor(Math.random()*pool.length)];
+      counts[pick]++; remaining--;
+    }
+  }else{
+    // Relaxed fallback: random assignment of all 8 segments.
+    ids.forEach(id=>counts[id]=0);
+    for(let i=0;i<TOTAL;i++){
+      const pick=ids[Math.floor(Math.random()*n)];
+      counts[pick]++;
+    }
+  }
+  // Build segment array then shuffle
+  const segs=[];
+  ids.forEach(id=>{ for(let i=0;i<counts[id];i++) segs.push(id); });
+  while(segs.length<TOTAL) segs.push(null);
+  for(let i=segs.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [segs[i],segs[j]]=[segs[j],segs[i]];
+  }
+  return segs.slice(0,TOTAL);
+}
+function randomizeAllEras(){
+  state.eras.forEach(era=>{ era.segments=randomSegmentDistribution(state.factions); });
+  persist('eras');
+}
+
+function initDefaults(){
+  if(!state.factions){ state.factions=DEFAULT_FACTIONS.map(f=>({...f})); persist('factions'); }
+  if(!state.eras){
+    state.eras=DEFAULT_ERAS.map((e,i)=>({
+      id:String(i+1), name:e.name, short:e.short, dates:e.dates,
+      segments:randomSegmentDistribution(state.factions)
+    }));
+    persist('eras');
+  }
+  if(state.crewLevel===null||state.crewLevel===undefined){ state.crewLevel=1; persist('crewLevel'); }
+  if(!state.crew){
+    state.crew=[];
+    for(let i=1;i<=4;i++){
+      state.crew.push({id:uid(),name:'Cog '+i,harmTotal:8,harmFilled:0,doxTotal:8,doxFilled:0,scars:0,expanded:false});
+    }
+    persist('crew');
+  }
+  if(!state.chrono){ state.chrono={size:4,filled:0,sizeChosen:false}; persist('chrono'); }
+  if(!state.scenes){ state.scenes=[]; persist('scenes'); }
+  if(!state.standalone){ state.standalone=[]; persist('standalone'); }
+  if(!state.links){ state.links=[]; persist('links'); }
+  if(!state.archived){ state.archived=[]; persist('archived'); }
+  if(state.notes===null||state.notes===undefined){ state.notes=''; persist('notes'); }
+}
+
+/* ======================================================================
+   SHARED CLOCK RENDERER
+   ====================================================================== */
+function polar(cx,cy,r,deg){
+  const a=(deg-90)*Math.PI/180;
+  return [cx+r*Math.cos(a), cy+r*Math.sin(a)];
+}
+// fills: array of color strings (one per segment). diameter px.
+function renderClock(fills,diameter,opts){
+  opts=opts||{};
+  const n=fills.length;
+  const cx=diameter/2, cy=diameter/2;
+  const stroke=opts.stroke||1;
+  const r=cx-stroke-(opts.pad||1);
+  const gapPx=opts.gap!=null?opts.gap:2;
+  const gapDeg=(gapPx/r)*(180/Math.PI);
+  const segAngle=360/n;
+  let paths='';
+  if(n===1){
+    paths='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+fills[0]+'" data-seg="0"></circle>';
+  }else{
+    for(let i=0;i<n;i++){
+      const sA=i*segAngle+gapDeg/2;
+      const eA=(i+1)*segAngle-gapDeg/2;
+      const [x1,y1]=polar(cx,cy,r,sA);
+      const [x2,y2]=polar(cx,cy,r,eA);
+      const large=(eA-sA)>180?1:0;
+      const d='M '+cx+' '+cy+' L '+x1.toFixed(2)+' '+y1.toFixed(2)+
+              ' A '+r.toFixed(2)+' '+r.toFixed(2)+' 0 '+large+' 1 '+x2.toFixed(2)+' '+y2.toFixed(2)+' Z';
+      paths+='<path d="'+d+'" fill="'+fills[i]+'" stroke="#161616" stroke-width="'+stroke+'" data-seg="'+i+'"></path>';
+    }
+  }
+  const cls=opts.interactive?'seg-interactive':'';
+  return '<svg class="oc-svg '+cls+'" width="'+diameter+'" height="'+diameter+'" viewBox="0 0 '+diameter+' '+diameter+'">'+paths+'</svg>';
+}
+
+const NEUTRAL='#2c2c2c';
+function getFaction(id){ return state.factions.find(f=>String(f.id)===String(id)); }
+function eraFills(era){
+  return era.segments.map(fid=>{
+    if(fid==null) return NEUTRAL;
+    const f=getFaction(fid);
+    return f?f.color:NEUTRAL;
+  });
+}
+function eraFactionCounts(era){
+  const m={};
+  era.segments.forEach(fid=>{ if(fid!=null) m[fid]=(m[fid]||0)+1; });
+  return m;
+}
+function timelineFills(){
+  return state.eras.map(era=>{
+    const counts=eraFactionCounts(era);
+    let col='#444';
+    for(const fid in counts){
+      if(counts[fid]>=5){ const f=getFaction(fid); if(f) col=f.color; }
+    }
+    return col;
+  });
+}
+function clockFills(c){
+  const arr=[];
+  for(let i=0;i<c.size;i++) arr.push(i<c.filled?c.color:NEUTRAL);
+  return arr;
+}
+
+/* ======================================================================
+   ERA CLUSTER
+   ====================================================================== */
+let editingEra=null;
+function renderEraCluster(){
+  const wrap=document.getElementById('era-cluster');
+  const cx=125, cy=140, orbit=92;
+  let html='';
+  // Timeline center
+  const tl=renderClock(timelineFills(),120,{stroke:1});
+  html+='<div class="timeline-wrap" style="left:'+(cx-60)+'px; top:'+(cy-60)+'px; width:120px;">'
+      + tl + '<div class="timeline-label">TIMELINE</div></div>';
+  // Era nodes
+  state.eras.forEach((era,i)=>{
+    const theta=i*45*Math.PI/180;
+    const px=cx+orbit*Math.sin(theta);
+    const py=cy-orbit*Math.cos(theta);
+    const editing=editingEra===era.id;
+    const fills=eraFills(era);
+    const counts=eraFactionCounts(era);
+    let bd='';
+    state.factions.forEach(f=>{ if(counts[f.id]) bd+='<span class="d"><span style="width:9px;height:9px;border-radius:50%;display:inline-block;background:'+f.color+'"></span>'+counts[f.id]+'</span>'; });
+    const compact=renderClock(fills,60,{stroke:1});
+    let node='<div class="era-node'+(editing?' editing':'')+'" style="left:'+(px-30)+'px; top:'+(py-30)+'px;" data-era-node="'+era.id+'">';
+    if(editing){
+      const edit=renderClock(fills,60,{stroke:1,interactive:true});
+      node+='<div class="era-svg-wrap" data-era-edit="'+era.id+'">'+edit+'</div>';
+      node+='<div class="era-name-s">'+esc(era.short||era.name)+'</div>';
+      node+='<div class="era-edit-panel">'
+          + '<div class="nm" data-eraedit="name" data-id="'+era.id+'">'+esc(era.name)+'</div>'
+          + '<div class="dt" data-eraedit="dates" data-id="'+era.id+'">'+esc(era.dates)+'</div>'
+          + '<div class="ehint">click segments to assign · dbl-click text to rename</div>'
+          + '</div>';
+    }else{
+      node+='<div class="era-svg-wrap">'+compact+'</div>';
+      node+='<div class="era-name-s">'+esc(era.short||era.name)+'</div>';
+      node+='<div class="era-pop">'
+          + '<div class="nm">'+esc(era.name)+'</div>'
+          + '<div class="dt">'+esc(era.dates)+'</div>'
+          + '<div class="bd">'+(bd||'<span style="color:#666">empty</span>')+'</div>'
+          + '<div class="hint">click to edit</div>'
+          + '</div>';
+    }
+    node+='</div>';
+    html+=node;
+  });
+  wrap.innerHTML=html;
+}
+function renderFactionLegend(){
+  const el=document.getElementById('faction-legend');
+  el.innerHTML=state.factions.map(f=>
+    '<div class="leg-row"><span class="dot" style="background:'+f.color+'"></span>'+esc(f.name)+'</div>'
+  ).join('');
+}
+
+/* ======================================================================
+   WORKSPACE — scenes, clocks, links
+   ====================================================================== */
+let linkingFrom=null;
+let archivedVisible=false;
+
+// Per-segment faction colors for a "contested" (faction-mode) clock.
+function clockFactionFills(c){
+  return c.segs.map(fid=>{
+    if(fid==null) return NEUTRAL;
+    const f=getFaction(fid);
+    return f?f.color:NEUTRAL;
+  });
+}
+function ensureSegs(c){
+  if(!Array.isArray(c.segs)||c.segs.length!==c.size) c.segs=new Array(c.size).fill(null);
+}
+function clockMarkup(c,location){
+  if(!c.mode) c.mode='fill';
+  const faction=c.mode==='faction';
+  let fills, completed=false, fillText;
+  if(faction){
+    ensureSegs(c);
+    fills=clockFactionFills(c);
+    fillText=c.segs.filter(s=>s!=null).length+' / '+c.size;
+  }else{
+    fills=clockFills(c);
+    completed=c.filled>=c.size;
+    fillText=c.filled+' / '+c.size;
+  }
+  const svg=renderClock(fills,88,{stroke:1,interactive:true});
+  let cls='oclock';
+  if(completed) cls+=' completed';
+  if(linkingFrom===c.id) cls+=' linking-source';
+  else if(linkingFrom && linkingFrom!==c.id) cls+=' linking-target';
+
+  let pop='<div class="oclock-pop">';
+  if(faction){
+    const counts={}; c.segs.forEach(s=>{ if(s!=null) counts[s]=(counts[s]||0)+1; });
+    let bd=''; state.factions.forEach(f=>{ if(counts[f.id]) bd+='<span class="d" style="display:inline-flex;align-items:center;gap:3px;margin:0 4px;"><span style="width:10px;height:10px;border-radius:50%;display:inline-block;background:'+f.color+'"></span>'+counts[f.id]+'</span>'; });
+    pop+='<div class="row" style="font-size:12px;color:#bbb;">'+(bd||'<span style="color:#777">click a segment to assign · right-click to clear</span>')+'</div>';
+  }else{
+    pop+='<div class="row">'
+       +'<button class="btn sm" data-action="clk-result" data-id="'+c.id+'" data-amt="0">Fail</button>'
+       +'<button class="btn sm" data-action="clk-result" data-id="'+c.id+'" data-amt="1">Part</button>'
+       +'<button class="btn sm" data-action="clk-result" data-id="'+c.id+'" data-amt="2">Succ</button>'
+       +'<button class="btn sm" data-action="clk-result" data-id="'+c.id+'" data-amt="3">Crit</button>'
+       +'<button class="btn sm" data-action="clk-result" data-id="'+c.id+'" data-amt="4">Mir</button>'
+       +'<button class="btn sm" data-action="clk-minus" data-id="'+c.id+'">−1</button>'
+       +'</div>';
+  }
+  pop+='<div class="row">'
+     +'<button class="btn sm" data-action="clk-link" data-id="'+c.id+'">Link</button>'
+     +'<button class="btn sm" data-action="clk-edit" data-id="'+c.id+'">Edit</button>'
+     +'<button class="btn sm" data-action="clk-archive" data-id="'+c.id+'">Archive</button>'
+     +'</div>';
+  pop+='</div>';
+  return '<div class="'+cls+'" data-clock="'+c.id+'" data-loc="'+location+'">'
+       + svg
+       + (completed?'<div class="complete-badge">COMPLETE</div>':'')
+       + '<div class="oc-name" title="'+esc(c.name)+'">'+esc(c.name||'Clock')+'</div>'
+       + '<div class="oc-fill">'+fillText+'</div>'
+       + pop + '</div>';
+}
+function cycleClockSegment(c,i){
+  const order=state.factions.map(f=>f.id);
+  if(!order.length) return;
+  const cur=c.segs[i];
+  let next;
+  if(cur==null){ next=order[0]; }
+  else{
+    const idx=order.findIndex(id=>String(id)===String(cur));
+    next = idx===-1 ? order[0] : (idx===order.length-1 ? null : order[idx+1]);
+  }
+  c.segs[i]=next;
+}
+
+function renderWorkspace(){
+  // Scenes
+  const sc=document.getElementById('scenes-container');
+  sc.innerHTML=state.scenes.map(scene=>{
+    const body=scene.clocks.map(c=>clockMarkup(c,'scene:'+scene.id)).join('');
+    return '<div class="scene'+(scene.collapsed?' collapsed':'')+'" data-scene="'+scene.id+'">'
+      + '<div class="scene-head">'
+      +   '<span class="chev">'+(scene.collapsed?'▸':'▾')+'</span>'
+      +   '<span class="nm" data-action="scene-toggle" data-scene="'+scene.id+'" data-sceneedit="1">'+esc(scene.name)+'</span>'
+      +   '<button class="btn sm" data-action="scene-add-clock" data-scene="'+scene.id+'">+ Clock</button>'
+      +   '<span data-delholder="'+scene.id+'"><button class="btn sm" data-action="scene-del" data-scene="'+scene.id+'">✕</button></span>'
+      + '</div>'
+      + '<div class="scene-body">'+(body||'<span style="color:#555;font-size:12px;">No clocks yet</span>')+'</div>'
+      + '</div>';
+  }).join('');
+
+  // Standalone
+  document.getElementById('standalone-body').innerHTML=
+    state.standalone.length
+      ? state.standalone.map(c=>clockMarkup(c,'standalone')).join('')
+      : '<span style="color:#555;font-size:12px;">No standalone clocks</span>';
+
+  // Archived
+  const arSec=document.getElementById('archived-section');
+  arSec.style.display=archivedVisible?'block':'none';
+  if(archivedVisible){
+    document.getElementById('archived-body').innerHTML=
+      state.archived.length
+        ? state.archived.map(c=>
+            '<div class="arch-row"><span class="sw" style="background:'+c.color+'"></span>'
+            +'<span style="flex:1">'+esc(c.name||'Clock')+'</span>'
+            +'<span style="color:#888">'+c.filled+'/'+c.size+'</span>'
+            +'<button class="btn sm" data-action="clk-unarchive" data-id="'+c.id+'">Unarchive</button></div>'
+          ).join('')
+        : '<span style="color:#555;font-size:12px;">Nothing archived</span>';
+  }
+  requestAnimationFrame(drawConnectors);
+}
+
+/* find a clock object + its container array anywhere (active locations) */
+function findClock(id){
+  for(const sc of state.scenes){
+    const idx=sc.clocks.findIndex(c=>c.id===id);
+    if(idx>=0) return {clock:sc.clocks[idx], arr:sc.clocks, idx, scene:sc};
+  }
+  const si=state.standalone.findIndex(c=>c.id===id);
+  if(si>=0) return {clock:state.standalone[si], arr:state.standalone, idx:si};
+  return null;
+}
+
+/* ---- Connectors ---- */
+function drawConnectors(){
+  const svg=document.getElementById('connector-svg');
+  const scroll=document.getElementById('ws-scroll');
+  svg.setAttribute('width',scroll.scrollWidth);
+  svg.setAttribute('height',scroll.scrollHeight);
+  const base=svg.getBoundingClientRect();
+  let defs='<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">'
+         + '<path d="M0,0 L7,3 L0,6 Z" fill="#c8922a"></path></marker></defs>';
+  let content='';
+  state.links.forEach((lk,i)=>{
+    const a=document.querySelector('.oclock[data-clock="'+lk.fromId+'"] .oc-svg');
+    const b=document.querySelector('.oclock[data-clock="'+lk.toId+'"] .oc-svg');
+    if(!a||!b) return;
+    const ra=a.getBoundingClientRect(), rb=b.getBoundingClientRect();
+    const x1=ra.left+ra.width/2-base.left, y1=ra.top+ra.height/2-base.top;
+    let x2=rb.left+rb.width/2-base.left, y2=rb.top+rb.height/2-base.top;
+    // shorten to edge of target circle for arrowhead
+    const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
+    const tr=rb.width/2;
+    const ex=x2-(dx/len)*tr, ey=y2-(dy/len)*tr;
+    const sr=ra.width/2;
+    const sx=x1+(dx/len)*sr, sy=y1+(dy/len)*sr;
+    const mx=(sx+ex)/2, my=(sy+ey)/2;
+    content+='<g class="conn" data-link="'+i+'" style="pointer-events:auto">';
+    content+='<line x1="'+sx+'" y1="'+sy+'" x2="'+ex+'" y2="'+ey+'" stroke="#c8922a" stroke-width="2" marker-end="url(#arrow)" opacity="0.85"></line>';
+    content+='<line x1="'+sx+'" y1="'+sy+'" x2="'+ex+'" y2="'+ey+'" stroke="transparent" stroke-width="12" data-action="link-hit" data-link="'+i+'"></line>';
+    if(lk.label){
+      content+='<rect x="'+(mx-lk.label.length*3.4-4)+'" y="'+(my-9)+'" width="'+(lk.label.length*6.8+8)+'" height="16" rx="3" fill="#1d1d1d" stroke="#3a3a3a"></rect>';
+      content+='<text x="'+mx+'" y="'+(my+3)+'" fill="#ccc" font-size="11" text-anchor="middle" font-family="Rajdhani" data-action="link-label" data-link="'+i+'" style="cursor:text">'+esc(lk.label)+'</text>';
+    }else{
+      content+='<text x="'+mx+'" y="'+(my+3)+'" fill="#666" font-size="10" text-anchor="middle" font-family="Rajdhani" data-action="link-label" data-link="'+i+'" style="cursor:text" class="conn-add">+label</text>';
+    }
+    // delete X (shown on hover via opacity through CSS-ish: always present, subtle)
+    content+='<g data-action="link-del" data-link="'+i+'" style="cursor:pointer" class="conn-del">';
+    content+='<circle cx="'+(ex)+'" cy="'+(ey-12)+'" r="7" fill="#222" stroke="#c8922a"></circle>';
+    content+='<text x="'+(ex)+'" y="'+(ey-9)+'" fill="#c8922a" font-size="10" text-anchor="middle">✕</text>';
+    content+='</g>';
+    content+='</g>';
+  });
+  svg.innerHTML=defs+content;
+}
+
+/* ======================================================================
+   CREW
+   ====================================================================== */
+function tierInfo(lvl){
+  if(lvl<=3) return 'Tier 1 · Prof d4 · Exp d6';
+  if(lvl<=7) return 'Tier 2 · Prof d6 · Exp d8';
+  return 'Tier 3 · Prof d8 · Exp d10';
+}
+function harmBoxColor(basePos){ // 1-indexed within base 8
+  if(basePos<=2) return '#2e7d32';
+  if(basePos<=4) return '#9caf2b';
+  if(basePos<=6) return '#ef6c00';
+  return '#c62828';
+}
+function doxBoxColor(basePos){
+  // blue -> purple across 1..8
+  const t=Math.min(1,(basePos-1)/7);
+  const h=Math.round(212+ (282-212)*t);
+  return 'hsl('+h+',55%,48%)';
+}
+function miniBar(total,filled,kind){
+  let h='<div class="mini-bar">';
+  for(let i=0;i<total;i++){
+    const f=i<filled;
+    const base=total-Math.min(total,8); // bonus count to the left
+    const basePos=i-base+1;
+    let col=NEUTRAL;
+    if(f) col=kind==='harm'?harmBoxColor(Math.max(1,basePos)):doxBoxColor(Math.max(1,basePos));
+    h+='<span class="mini-pip" style="'+(f?'background:'+col+';border-color:'+col:'')+'"></span>';
+  }
+  return h+'</div>';
+}
+function boxRow(cog,kind){
+  const total=kind==='harm'?cog.harmTotal:cog.doxTotal;
+  const filled=kind==='harm'?cog.harmFilled:cog.doxFilled;
+  const bonus=total-8;
+  let bonusBoxes='';
+  for(let i=0;i<bonus;i++){
+    const pos=i+1; const f=pos<=filled;
+    let col=kind==='harm'?harmBoxColor(1):doxBoxColor(1);
+    bonusBoxes+='<div class="hbox bonus" data-action="box-click" data-kind="'+kind+'" data-id="'+cog.id+'" data-pos="'+pos+'" style="'+(f?'background:'+col:'')+'"></div>';
+  }
+  let baseBoxes='';
+  for(let i=0;i<8;i++){
+    const pos=bonus+i+1; const basePos=i+1; const f=pos<=filled;
+    let col=kind==='harm'?harmBoxColor(basePos):doxBoxColor(basePos);
+    baseBoxes+='<div class="hbox" data-action="box-click" data-kind="'+kind+'" data-id="'+cog.id+'" data-pos="'+pos+'" style="'+(f?'background:'+col+';border-color:'+col:'')+'"></div>';
+  }
+  let thresh='';
+  if(kind==='harm'){
+    const labels=[[2,'No Prof.'],[4,'−1 Die'],[6,'−1 Result'],[8,'Dying']];
+    labels.forEach(([p,t])=>{ thresh+='<div class="thresh" style="left:'+(p/8*100)+'%">'+t+'</div>'; });
+  }
+  return '<div class="clk-block">'
+    + '<div class="clk-lbl">'+(kind==='harm'?'Harm':'Dox')+' Clock '
+    + '<button class="btn sm" data-action="box-add" data-kind="'+kind+'" data-id="'+cog.id+'"'+(total>=12?' disabled':'')+' title="Add bonus box">+</button>'
+    + '<button class="btn sm" data-action="box-remove" data-kind="'+kind+'" data-id="'+cog.id+'"'+(total<=8?' disabled':'')+' title="Remove bonus box">−</button>'
+    + '<span style="color:#666;font-size:11px;">'+filled+'/'+total+'</span></div>'
+    + '<div class="box-row-wrap"><div class="box-row">'
+    + bonusBoxes
+    + '<div class="box-base">'+baseBoxes+thresh+'</div>'
+    + '</div></div></div>';
+}
+function renderCrew(){
+  document.getElementById('crew-level-input').value=state.crewLevel;
+  document.getElementById('crew-derived').textContent=tierInfo(state.crewLevel);
+
+  const wrap=document.getElementById('crew-members');
+  wrap.innerHTML=state.crew.map(cog=>{
+    let scars='';
+    for(let i=0;i<4;i++) scars+='<div class="scar'+(i<cog.scars?' on':'')+'" data-action="scar-click" data-id="'+cog.id+'" data-pos="'+(i+1)+'"></div>';
+    let miniScars='';
+    for(let i=0;i<4;i++) miniScars+='<span class="mini-scar'+(i<cog.scars?' on':'')+'"></span>';
+    let body='';
+    if(cog.expanded){
+      body='<div class="cog-body">'
+        + boxRow(cog,'harm')
+        + boxRow(cog,'dox')
+        + '<div class="clk-block"><div class="clk-lbl">Scars</div>'
+        + '<div class="scar-row">'+scars+'</div>'
+        + (cog.scars>=3?'<div class="warn-text" style="margin-top:5px;">Warning: 4th Scar triggers Zeitgeist removal</div>':'')
+        + '</div>'
+        + '<div class="cog-foot">'
+        + '<span data-delcog-holder="'+cog.id+'"><button class="btn sm" data-action="cog-del" data-id="'+cog.id+'">− Remove Cog</button></span>'
+        + '<button class="btn sm" data-action="cog-toggle" data-id="'+cog.id+'">▴ Collapse</button>'
+        + '</div></div>';
+    }
+    return '<div class="cog'+(cog.expanded?' expanded':'')+'" data-cog="'+cog.id+'">'
+      + '<div class="cog-head" data-action="cog-toggle" data-id="'+cog.id+'">'
+      +   '<span class="chev" data-action="cog-toggle" data-id="'+cog.id+'">'+(cog.expanded?'▾':'▸')+'</span>'
+      +   '<span class="nm" data-action="cog-name" data-id="'+cog.id+'">'+esc(cog.name)+'</span>'
+      +   '<div class="cog-mini">'+miniBar(cog.harmTotal,cog.harmFilled,'harm')+miniBar(cog.doxTotal,cog.doxFilled,'dox')
+      +   '<div class="mini-scars">'+miniScars+'</div></div>'
+      + '</div>' + body
+      + '</div>';
+  }).join('');
+}
+
+/* ======================================================================
+   CHRONOCRAFT
+   ====================================================================== */
+function renderChronocraft(){
+  const el=document.getElementById('chronocraft-panel');
+  const ch=state.chrono;
+  if(!ch.sizeChosen){
+    el.innerHTML='<div class="col-h" style="margin:0 0 8px;">Chronocraft</div>'
+      +'<div style="font-size:12px;color:#999;margin-bottom:6px;">Select clock size:</div>'
+      +'<div class="seg-ctrl">'
+      +[4,6,8,10,12].map(s=>'<button data-action="chrono-size" data-size="'+s+'">'+s+'</button>').join('')
+      +'</div>';
+    return;
+  }
+  const fills=[];
+  for(let i=0;i<ch.size;i++) fills.push(i<ch.filled?'#c8922a':NEUTRAL);
+  const svg=renderClock(fills,88,{stroke:1,interactive:true});
+  const empty=ch.size-ch.filled;
+  const thr=[
+    {cond:empty<=3,t:'Partially Damaged — No Proficiency at stations',cls:''},
+    {cond:empty<=2,t:'Damaged — also −1 to all dice',cls:''},
+    {cond:empty<=1,t:'Critically Damaged — also −1 result level',cls:''},
+    {cond:empty<=0,t:'DESTROYED',cls:'destroyed'}
+  ];
+  el.innerHTML='<div class="col-h" style="margin:0 0 8px;">Chronocraft</div>'
+    +'<div style="text-align:center" data-chrono="1">'+svg+'</div>'
+    +'<div style="text-align:center;font-size:11px;color:#888;margin:4px 0;">'+ch.size+'-segment clock · '
+    +'<a href="#" data-action="chrono-change" style="color:#c8922a;text-decoration:none;">[change]</a></div>'
+    +thr.map(x=>'<div class="ch-thresh '+x.cls+(x.cond?' active':'')+'">'+x.t+'</div>').join('');
+}
+
+/* ======================================================================
+   REFERENCE
+   ====================================================================== */
+const REFERENCE_SECTIONS=[
+  {title:'Roll Outcomes',html:`<table><tr><th>Roll</th><th>Outcome</th><th>Description</th></tr>
+    <tr><td>1–2</td><td>Failure</td><td>Task fails; consequence changes the fiction</td></tr>
+    <tr><td>3–4</td><td>Partial</td><td>Succeed with cost, or fail but improve situation</td></tr>
+    <tr><td>5–6</td><td>Success</td><td>Task completed as intended</td></tr>
+    <tr><td>7–9</td><td>Critical</td><td>Completes task; situation improved</td></tr>
+    <tr><td>10+</td><td>Miracle</td><td>Completes task; situation greatly improved</td></tr></table>`},
+  {title:'Clock Fill by Result',html:`<table><tr><th>Result</th><th>Segments</th></tr>
+    <tr><td>Failure</td><td>0 (or −1)</td></tr><tr><td>Partial</td><td>1</td></tr>
+    <tr><td>Success</td><td>2</td></tr><tr><td>Critical</td><td>3</td></tr>
+    <tr><td>Miracle</td><td>4</td></tr></table>`},
+  {title:'Roll Modification',html:`<div class="ladder">
+    <div class="step">⬇ Decrease</div><div class="step">Normal</div>
+    <div class="step center">+ Proficiency</div><div class="step">+ Expertise</div>
+    <div class="step">⬆ Increase</div></div>
+    <div class="note">Only 1 step total regardless of sources. Positives and negatives cancel.</div>`},
+  {title:'Harm — Weapons',html:`<table><tr><th>Result</th><th>Harm</th></tr>
+    <tr><td>Failure</td><td>0</td></tr><tr><td>Partial</td><td>1</td></tr>
+    <tr><td>Success</td><td>2</td></tr><tr><td>Critical</td><td>3</td></tr>
+    <tr><td>Miracle</td><td>4</td></tr></table>
+    <div class="note">Unarmed: reduce attacker result by 1 level (Expertise in Clash negates this)<br>
+    Effective armor: reduce attacker result by 1 level</div>`},
+  {title:'Harm Debuffs',html:`<table><tr><th>Harm</th><th>Effect</th></tr>
+    <tr><td>2+ / 8</td><td>Cannot roll with Proficiency</td></tr>
+    <tr><td>4+ / 8</td><td>−1 to all dice rolled</td></tr>
+    <tr><td>6+ / 8</td><td>−1 result level</td></tr>
+    <tr><td>8 / 8</td><td>Dying — teammate spends 1 Dox to revive</td></tr></table>
+    <div class="note">Effects are cumulative.</div>`},
+  {title:'Dox Costs',html:`<table><tr><th>Ability</th><th>Dox</th></tr>
+    <tr><td>Heavy Inventory</td><td>1</td></tr><tr><td>Time Pulses</td><td>2</td></tr>
+    <tr><td>Assist</td><td>1</td></tr><tr><td>Retcon – Minor</td><td>1</td></tr>
+    <tr><td>Retcon – Major</td><td>2</td></tr><tr><td>Retcon – Dramatic</td><td>3+</td></tr>
+    <tr><td>Anachronism (past era)</td><td>1</td></tr><tr><td>Anachronism (future era)</td><td>2</td></tr>
+    <tr><td>Quality Item</td><td>1</td></tr></table>
+    <div class="note">For Retcon, GM declares cost before player commits. Player may decline after hearing it.</div>`},
+  {title:'Wind-Down Sequence',html:`<ol class="wind">
+    <li>All Cogs shunted back to Chronocraft</li>
+    <li>Harm resets for all Cogs</li>
+    <li>Dox clears for all Cogs</li>
+    <li>Relic awarded to completing Chronocraft</li>
+    <li>Make Timeline Viewer roll → update Era Clock for this Tick's Era</li>
+    <li>Downtime phase begins</li></ol>`}
+];
+function renderReference(){
+  document.getElementById('reference').innerHTML=REFERENCE_SECTIONS.map((s,i)=>
+    '<div class="acc-sec" data-acc="'+i+'"><div class="acc-h" data-action="acc-toggle" data-acc="'+i+'">'
+    +'<span>'+s.title+'</span><span class="ar">▸</span></div>'
+    +'<div class="acc-b">'+s.html+'</div></div>'
+  ).join('');
+}
+
+/* ======================================================================
+   FULL RENDER
+   ====================================================================== */
+function renderAll(){
+  renderEraCluster();
+  renderFactionLegend();
+  renderWorkspace();
+  renderCrew();
+  renderChronocraft();
+}
+
+/* ======================================================================
+   UTILITIES
+   ====================================================================== */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Generic inline edit: replace element content with input, save on enter/blur.
+function inlineEdit(el,value,onSave,opts){
+  opts=opts||{};
+  const input=document.createElement('input');
+  input.type='text'; input.className='inline-input'; input.value=value;
+  if(opts.width) input.style.width=opts.width;
+  el.textContent=''; el.appendChild(input);
+  input.focus(); input.select();
+  let done=false;
+  function finish(save){
+    if(done) return; done=true;
+    if(save) onSave(input.value);
+    renderAll();
+  }
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); finish(true); }
+    else if(e.key==='Escape'){ finish(false); }
+  });
+  input.addEventListener('blur',()=>finish(true));
+}
+
+/* ======================================================================
+   EVENT HANDLING (delegated)
+   ====================================================================== */
+const root=document;
+
+// SEGMENT clicks (era edit / obstacle clock / chronocraft)
+root.addEventListener('click',e=>{
+  const seg=e.target.closest('[data-seg]');
+  if(seg){
+    const i=parseInt(seg.getAttribute('data-seg'),10);
+    // Era edit segment?
+    const eraEdit=e.target.closest('[data-era-edit]');
+    if(eraEdit){
+      e.stopPropagation();
+      const era=state.eras.find(x=>x.id===eraEdit.getAttribute('data-era-edit'));
+      cycleEraSegment(era,i); return;
+    }
+    // Chronocraft segment?
+    if(e.target.closest('[data-chrono]')){
+      const ch=state.chrono;
+      ch.filled = (i<ch.filled)? i : i+1;
+      ch.filled=Math.max(0,Math.min(ch.size,ch.filled));
+      persist('chrono'); renderChronocraft(); return;
+    }
+    // Obstacle clock segment?
+    const oc=e.target.closest('.oclock');
+    if(oc){
+      const id=oc.getAttribute('data-clock');
+      if(linkingFrom){ completeLink(id); return; }
+      const found=findClock(id);
+      if(found){
+        const c=found.clock;
+        if(c.mode==='faction'){
+          ensureSegs(c); cycleClockSegment(c,i);
+        }else{
+          c.filled = (i<c.filled)? i : i+1;
+          c.filled=Math.max(0,Math.min(c.size,c.filled));
+          c.status = c.filled>=c.size?'completed':'active';
+        }
+        persistClockLoc(found); renderWorkspace();
+      }
+      return;
+    }
+  }
+
+  const act=e.target.closest('[data-action]');
+  // clicking an oclock body (not on a button) during linking selects target
+  if(linkingFrom){
+    const ocl=e.target.closest('.oclock');
+    if(ocl && !act){ completeLink(ocl.getAttribute('data-clock')); return; }
+    if(ocl && act && act.getAttribute('data-action')!=='clk-link'){ /* allow button */ }
+  }
+  if(!act) return;
+  const action=act.getAttribute('data-action');
+  handleAction(action,act,e);
+});
+
+function persistClockLoc(found){
+  if(found.scene) persist('scenes'); else persist('standalone');
+}
+
+function cycleEraSegment(era,i){
+  const order=state.factions.map(f=>f.id);
+  if(order.length===0) return;
+  const cur=era.segments[i];
+  let next;
+  if(cur==null){ next=order[0]; }
+  else{
+    const idx=order.findIndex(id=>String(id)===String(cur));
+    if(idx===-1) next=order[0];
+    else if(idx===order.length-1) next=null;
+    else next=order[idx+1];
+  }
+  era.segments[i]=next;
+  persist('eras');
+  renderEraCluster();
+}
+
+function completeLink(targetId){
+  if(targetId && targetId!==linkingFrom){
+    state.links.push({fromId:linkingFrom,toId:targetId,label:''});
+    persist('links');
+  }
+  linkingFrom=null;
+  renderWorkspace();
+}
+
+function handleAction(action,el,e){
+  switch(action){
+    /* top bar / modals */
+    case 'open-setup': openFactionModal(); break;
+    case 'open-notes': openNotesModal(); break;
+
+    /* workspace toolbar */
+    case 'new-scene':
+      state.scenes.push({id:uid(),name:'New Scene',collapsed:false,clocks:[]});
+      persist('scenes'); renderWorkspace(); break;
+    case 'new-standalone': openClockPopover({type:'standalone'},e); break;
+    case 'toggle-archived': archivedVisible=!archivedVisible; renderWorkspace(); break;
+
+    /* scenes */
+    case 'scene-toggle':{
+      // Single click toggles collapse; dbl-click edits the name. Toggle in
+      // place (no full re-render) so the name element survives for dbl-click.
+      const sid=el.getAttribute('data-scene');
+      const s=state.scenes.find(x=>x.id===sid);
+      if(s){
+        s.collapsed=!s.collapsed; persist('scenes');
+        const sceneEl=el.closest('.scene');
+        sceneEl.classList.toggle('collapsed',s.collapsed);
+        sceneEl.querySelector('.chev').textContent=s.collapsed?'▸':'▾';
+        requestAnimationFrame(drawConnectors);
+      }
+      break;
+    }
+    case 'scene-add-clock': openClockPopover({type:'scene',sceneId:el.getAttribute('data-scene')},e); break;
+    case 'scene-del':{
+      const sid=el.getAttribute('data-scene');
+      const holder=document.querySelector('[data-delholder="'+sid+'"]');
+      holder.innerHTML='<span class="confirm-inline">Delete scene?'
+        +'<button class="btn sm" data-action="scene-del-yes" data-scene="'+sid+'">Confirm</button>'
+        +'<button class="btn sm" data-action="scene-del-no" data-scene="'+sid+'">Cancel</button></span>';
+      break;
+    }
+    case 'scene-del-yes':{
+      const sid=el.getAttribute('data-scene');
+      // remove links referencing clocks in this scene
+      const s=state.scenes.find(x=>x.id===sid);
+      if(s){ const ids=s.clocks.map(c=>c.id);
+        state.links=state.links.filter(l=>!ids.includes(l.fromId)&&!ids.includes(l.toId));
+        persist('links');
+      }
+      state.scenes=state.scenes.filter(x=>x.id!==sid);
+      persist('scenes'); renderWorkspace(); break;
+    }
+    case 'scene-del-no': renderWorkspace(); break;
+
+    /* clocks */
+    case 'clk-result':{
+      const found=findClock(el.getAttribute('data-id'));
+      if(found){ const c=found.clock; const amt=parseInt(el.getAttribute('data-amt'),10);
+        c.filled=Math.min(c.size,c.filled+amt);
+        c.status=c.filled>=c.size?'completed':'active';
+        persistClockLoc(found); renderWorkspace(); }
+      break;
+    }
+    case 'clk-minus':{
+      const found=findClock(el.getAttribute('data-id'));
+      if(found){ const c=found.clock; c.filled=Math.max(0,c.filled-1);
+        c.status=c.filled>=c.size?'completed':'active';
+        persistClockLoc(found); renderWorkspace(); }
+      break;
+    }
+    case 'clk-link':{
+      const id=el.getAttribute('data-id');
+      linkingFrom = (linkingFrom===id)? null : id;
+      hideFloatPop(); renderWorkspace(); break;
+    }
+    case 'clk-edit': hideFloatPop(); openClockEdit(el.getAttribute('data-id'),e); break;
+    case 'clk-archive':{
+      hideFloatPop();
+      const id=el.getAttribute('data-id'); const found=findClock(id);
+      if(found){ const c=found.clock; c.status='archived';
+        found.arr.splice(found.idx,1);
+        state.archived.push(c);
+        // keep links? remove links involving archived clock
+        state.links=state.links.filter(l=>l.fromId!==id&&l.toId!==id);
+        persistClockLoc(found); persist('archived'); persist('links');
+        renderWorkspace(); }
+      break;
+    }
+    case 'clk-unarchive':{
+      const id=el.getAttribute('data-id');
+      const idx=state.archived.findIndex(c=>c.id===id);
+      if(idx>=0){ const c=state.archived[idx]; state.archived.splice(idx,1);
+        c.status=c.filled>=c.size?'completed':'active';
+        state.standalone.push(c);
+        persist('archived'); persist('standalone'); renderWorkspace(); }
+      break;
+    }
+
+    /* links overlay */
+    case 'link-del':{
+      const i=parseInt(el.getAttribute('data-link'),10);
+      state.links.splice(i,1); persist('links'); renderWorkspace(); break;
+    }
+    case 'link-label': editLinkLabel(parseInt(el.getAttribute('data-link'),10)); break;
+    case 'link-hit': break;
+
+    /* crew */
+    case 'cog-toggle':{
+      const c=state.crew.find(x=>x.id===el.getAttribute('data-id'));
+      if(c){ c.expanded=!c.expanded; persist('crew'); renderCrew(); } break;
+    }
+    case 'cog-name':{
+      const id=el.getAttribute('data-id'); const c=state.crew.find(x=>x.id===id);
+      inlineEdit(el,c.name,v=>{ c.name=v.trim()||c.name; persist('crew'); }); break;
+    }
+    case 'box-click':{
+      const c=state.crew.find(x=>x.id===el.getAttribute('data-id'));
+      const kind=el.getAttribute('data-kind'); const pos=parseInt(el.getAttribute('data-pos'),10);
+      const fk=kind==='harm'?'harmFilled':'doxFilled';
+      c[fk] = (pos<=c[fk])? pos-1 : pos;
+      persist('crew'); renderCrew(); break;
+    }
+    case 'box-add':{
+      const c=state.crew.find(x=>x.id===el.getAttribute('data-id'));
+      const kind=el.getAttribute('data-kind'); const tk=kind==='harm'?'harmTotal':'doxTotal';
+      if(c[tk]<12){ c[tk]++; persist('crew'); renderCrew(); } break;
+    }
+    case 'box-remove':{
+      const c=state.crew.find(x=>x.id===el.getAttribute('data-id'));
+      const kind=el.getAttribute('data-kind');
+      const tk=kind==='harm'?'harmTotal':'doxTotal';
+      const fk=kind==='harm'?'harmFilled':'doxFilled';
+      if(c[tk]>8){ c[tk]--; if(c[fk]>c[tk]) c[fk]=c[tk]; persist('crew'); renderCrew(); }
+      break;
+    }
+    case 'scar-click':{
+      const c=state.crew.find(x=>x.id===el.getAttribute('data-id'));
+      const pos=parseInt(el.getAttribute('data-pos'),10);
+      c.scars = (pos<=c.scars)? pos-1 : pos;
+      persist('crew'); renderCrew(); break;
+    }
+    case 'cog-del':{
+      const id=el.getAttribute('data-id');
+      const holder=document.querySelector('[data-delcog-holder="'+id+'"]');
+      holder.innerHTML='<span class="confirm-inline">Remove?'
+        +'<button class="btn sm" data-action="cog-del-yes" data-id="'+id+'">Confirm</button>'
+        +'<button class="btn sm" data-action="cog-del-no" data-id="'+id+'">Cancel</button></span>';
+      break;
+    }
+    case 'cog-del-yes':{
+      state.crew=state.crew.filter(x=>x.id!==el.getAttribute('data-id'));
+      persist('crew'); renderCrew(); break;
+    }
+    case 'cog-del-no': renderCrew(); break;
+    case 'add-cog':{
+      // next number = highest existing "Cog N" +1, else count+1
+      let max=0;
+      state.crew.forEach(c=>{ const m=/^Cog (\d+)$/.exec(c.name); if(m) max=Math.max(max,+m[1]); });
+      const n=Math.max(max,state.crew.length)+1;
+      state.crew.push({id:uid(),name:'Cog '+n,harmTotal:8,harmFilled:0,doxTotal:8,doxFilled:0,scars:0,expanded:false});
+      persist('crew'); renderCrew(); break;
+    }
+
+    /* chronocraft */
+    case 'chrono-size':{
+      state.chrono.size=parseInt(el.getAttribute('data-size'),10);
+      state.chrono.filled=Math.min(state.chrono.filled,state.chrono.size);
+      state.chrono.sizeChosen=true; persist('chrono'); renderChronocraft(); break;
+    }
+    case 'chrono-change':{
+      e.preventDefault(); state.chrono.sizeChosen=false; persist('chrono'); renderChronocraft(); break;
+    }
+
+    /* reference accordion */
+    case 'acc-toggle':{
+      const sec=el.closest('.acc-sec'); sec.classList.toggle('open');
+      sec.querySelector('.ar').textContent=sec.classList.contains('open')?'▾':'▸';
+      break;
+    }
+
+    /* faction modal */
+    case 'fac-add':{
+      if(state.factions.length<8){
+        state.factions.push({id:uid(),name:'Faction '+(state.factions.length+1),color:'#888888'});
+        persist('factions'); renderFactionModalBody(); renderEraCluster(); renderFactionLegend();
+      } break;
+    }
+    case 'fac-del':{
+      if(state.factions.length<=2) break;
+      const id=el.getAttribute('data-id');
+      state.factions=state.factions.filter(f=>String(f.id)!==String(id));
+      // revert era segments referencing deleted faction
+      state.eras.forEach(era=>{ era.segments=era.segments.map(s=>String(s)===String(id)?null:s); });
+      persist('factions'); persist('eras');
+      renderFactionModalBody(); renderEraCluster(); renderFactionLegend(); break;
+    }
+    case 'fac-randomize': randomizeAllEras(); renderEraCluster(); break;
+    case 'fac-done': closeModal(); break;
+    case 'notes-close': closeModal(); break;
+    case 'modal-back': if(e.target===el) closeModal(); break;
+
+    /* clock popover */
+    case 'clkpop-size':{
+      el.closest('.seg-ctrl').querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+      el.classList.add('sel'); break;
+    }
+    case 'clkpop-mode':{
+      el.closest('.seg-ctrl').querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+      el.classList.add('sel');
+      // The single color picker is only meaningful for Progress clocks.
+      const faction=el.getAttribute('data-mode')==='faction';
+      const lbl=document.getElementById('cp-color-label');
+      const inp=document.getElementById('cp-color');
+      if(lbl) lbl.style.display=faction?'none':'';
+      if(inp) inp.style.display=faction?'none':'';
+      break;
+    }
+    case 'clkpop-create': submitClockPopover(); break;
+    case 'clkpop-cancel': closeClockPopover(); break;
+    case 'clkedit-save': submitClockEdit(); break;
+    case 'clkedit-cancel': closeClockPopover(); break;
+  }
+}
+
+/* dblclick: scene name, era name/dates */
+root.addEventListener('dblclick',e=>{
+  const sceneNm=e.target.closest('[data-sceneedit]');
+  if(sceneNm){
+    e.stopPropagation();
+    const sid=sceneNm.getAttribute('data-scene');
+    const s=state.scenes.find(x=>x.id===sid);
+    inlineEdit(sceneNm,s.name,v=>{ s.name=v.trim()||s.name; persist('scenes'); });
+    return;
+  }
+  const eraEd=e.target.closest('[data-eraedit]');
+  if(eraEd){
+    e.stopPropagation();
+    const id=eraEd.getAttribute('data-id'); const field=eraEd.getAttribute('data-eraedit');
+    const era=state.eras.find(x=>x.id===id);
+    inlineEdit(eraEd,era[field],v=>{
+      era[field]=v;
+      if(field==='name'){ era.short=v.replace(/^Age of /,'').slice(0,9); }
+      persist('eras');
+    });
+    return;
+  }
+});
+
+/* right-click on filled obstacle-clock segment removes one */
+root.addEventListener('contextmenu',e=>{
+  const seg=e.target.closest('.oclock [data-seg]');
+  if(seg){
+    const oc=e.target.closest('.oclock');
+    const found=findClock(oc.getAttribute('data-clock'));
+    if(found){
+      e.preventDefault();
+      const i=parseInt(seg.getAttribute('data-seg'),10);
+      const c=found.clock;
+      if(c.mode==='faction'){
+        ensureSegs(c); c.segs[i]=null; persistClockLoc(found); renderWorkspace();
+      }else if(i<c.filled){
+        c.filled=Math.max(0,c.filled-1);
+        c.status=c.filled>=c.size?'completed':'active';
+        persistClockLoc(found); renderWorkspace();
+      }
+    }
+  }
+});
+
+/* click-outside to exit era edit mode */
+root.addEventListener('mousedown',e=>{
+  if(editingEra){
+    const node=e.target.closest('.era-node.editing');
+    if(!node){ editingEra=null; renderEraCluster(); }
+  }
+});
+/* click an era node (compact) to enter edit mode */
+root.addEventListener('click',e=>{
+  const node=e.target.closest('[data-era-node]');
+  if(node && !e.target.closest('.era-edit-panel')){
+    const id=node.getAttribute('data-era-node');
+    // First click on a compact clock enters edit mode; subsequent segment
+    // clicks (handled by the bubble listener) cycle faction colors.
+    if(editingEra!==id){ editingEra=id; renderEraCluster(); }
+  }
+},true);
+
+/* crew level input */
+document.getElementById('crew-level-input').addEventListener('input',function(){
+  let v=parseInt(this.value,10);
+  if(isNaN(v)) return;
+  v=Math.max(1,Math.min(10,v));
+  state.crewLevel=v; persist('crewLevel');
+  document.getElementById('crew-derived').textContent=tierInfo(v);
+});
+document.getElementById('crew-level-input').addEventListener('change',function(){
+  this.value=state.crewLevel;
+});
+
+/* redraw connectors on scroll/resize */
+document.getElementById('center').addEventListener('scroll',()=>{ requestAnimationFrame(drawConnectors); hideFloatPop(); });
+window.addEventListener('resize',()=>{ requestAnimationFrame(drawConnectors); hideFloatPop(); });
+
+/* ---- Floating clock popover ----
+   Rendered on <body> (position:fixed) so it is never clipped by the column,
+   with a hover-intent close delay so it is easy to move the cursor onto. */
+let floatPop=null, floatTimer=null, floatClockId=null;
+function getFloatPop(){
+  if(!floatPop){
+    floatPop=document.createElement('div');
+    floatPop.id='float-pop';
+    document.body.appendChild(floatPop);
+    floatPop.addEventListener('mouseenter',()=>clearTimeout(floatTimer));
+    floatPop.addEventListener('mouseleave',scheduleHideFloat);
+  }
+  return floatPop;
+}
+function showFloatPop(clockEl){
+  const src=clockEl.querySelector('.oclock-pop'); if(!src) return;
+  const fp=getFloatPop();
+  clearTimeout(floatTimer);
+  floatClockId=clockEl.getAttribute('data-clock');
+  fp.innerHTML=src.innerHTML;
+  fp.style.display='block';
+  const r=clockEl.getBoundingClientRect();
+  const pw=fp.offsetWidth, ph=fp.offsetHeight;
+  let left=r.left+r.width/2-pw/2;
+  left=Math.max(6,Math.min(window.innerWidth-pw-6,left));
+  let top=r.bottom+5;
+  if(top+ph>window.innerHeight-6) top=Math.max(6,r.top-ph-5);
+  fp.style.left=left+'px';
+  fp.style.top=top+'px';
+}
+function hideFloatPop(){ if(floatPop) floatPop.style.display='none'; floatClockId=null; }
+function scheduleHideFloat(){ clearTimeout(floatTimer); floatTimer=setTimeout(hideFloatPop,350); }
+
+const wsScrollEl=document.getElementById('ws-scroll');
+wsScrollEl.addEventListener('mouseover',e=>{
+  if(linkingFrom) return; // don't obscure target selection while linking
+  const oc=e.target.closest('.oclock');
+  if(oc){
+    clearTimeout(floatTimer);
+    if(oc.getAttribute('data-clock')!==floatClockId || !floatPop || floatPop.style.display==='none'){
+      showFloatPop(oc);
+    }
+  }
+});
+wsScrollEl.addEventListener('mouseout',e=>{
+  const oc=e.target.closest('.oclock');
+  if(!oc) return;
+  const to=e.relatedTarget;
+  if(to && (to.closest && to.closest('.oclock')===oc)) return;       // still on same clock
+  if(to && floatPop && floatPop.contains(to)) return;                // moved onto popover
+  scheduleHideFloat();
+});
+
+/* ======================================================================
+   FACTION MODAL
+   ====================================================================== */
+function openFactionModal(){
+  const back=document.createElement('div');
+  back.className='modal-back'; back.id='active-modal';
+  back.setAttribute('data-action','modal-back');
+  back.innerHTML='<div class="modal" style="width:380px;"><h2>Faction Manager</h2>'
+    +'<div id="fac-list"></div>'
+    +'<div class="fac-actions">'
+    +'<button class="btn accent" data-action="fac-add">+ Add Faction</button>'
+    +'<button class="btn" data-action="fac-randomize">Randomize Era Clocks</button>'
+    +'<button class="btn accent" data-action="fac-done">Done</button>'
+    +'</div></div>';
+  document.body.appendChild(back);
+  renderFactionModalBody();
+}
+function renderFactionModalBody(){
+  const list=document.getElementById('fac-list');
+  if(!list) return;
+  list.innerHTML=state.factions.map(f=>
+    '<div class="fac-row" data-fid="'+f.id+'">'
+    +'<input type="color" value="'+f.color+'" data-facfield="color" data-id="'+f.id+'">'
+    +'<input type="text" value="'+esc(f.name)+'" data-facfield="name" data-id="'+f.id+'">'
+    +'<button class="btn sm" data-action="fac-del" data-id="'+f.id+'"'+(state.factions.length<=2?' disabled':'')+'>✕</button>'
+    +'</div>'
+  ).join('');
+}
+/* faction inputs (color/name) propagate immediately */
+root.addEventListener('input',e=>{
+  const field=e.target.getAttribute&&e.target.getAttribute('data-facfield');
+  if(field){
+    const f=getFaction(e.target.getAttribute('data-id'));
+    if(f){ f[field]=e.target.value; persist('factions');
+      renderEraCluster(); renderFactionLegend(); renderWorkspace(); }
+  }
+});
+
+/* ======================================================================
+   NOTES MODAL
+   ====================================================================== */
+let notesTimer=null;
+function openNotesModal(){
+  const back=document.createElement('div');
+  back.className='modal-back'; back.id='active-modal';
+  back.setAttribute('data-action','modal-back');
+  back.innerHTML='<div class="modal"><h2>GM Notes</h2>'
+    +'<textarea id="notes-area"></textarea>'
+    +'<div class="modal-foot"><button class="btn accent" data-action="notes-close">Close</button></div></div>';
+  document.body.appendChild(back);
+  const ta=document.getElementById('notes-area');
+  ta.value=state.notes||'';
+  ta.focus();
+  ta.addEventListener('input',()=>{
+    state.notes=ta.value;
+    clearTimeout(notesTimer);
+    notesTimer=setTimeout(()=>persist('notes'),500);
+  });
+}
+function closeModal(){
+  const m=document.getElementById('active-modal');
+  if(m){
+    if(notesTimer){ clearTimeout(notesTimer); persist('notes'); notesTimer=null; }
+    m.remove();
+  }
+}
+
+/* ======================================================================
+   CLOCK CREATE / EDIT POPOVER
+   ====================================================================== */
+let clockPopTarget=null;
+function openClockPopover(target,e){
+  closeClockPopover();
+  clockPopTarget=target;
+  const pop=document.createElement('div');
+  pop.id='clock-pop';
+  pop.innerHTML='<div style="font-weight:600;letter-spacing:1px;color:#bbb;margin-bottom:4px;">New Clock</div>'
+    +'<label>Name</label><input type="text" id="cp-name" placeholder="Clock name">'
+    +'<label>Size</label><div class="seg-ctrl" id="cp-size">'
+    +[4,6,8].map((s,i)=>'<button data-action="clkpop-size" data-size="'+s+'"'+(i===1?' class="sel"':'')+'>'+s+'</button>').join('')
+    +'</div>'
+    +'<label>Type</label><div class="seg-ctrl" id="cp-mode">'
+    +'<button data-action="clkpop-mode" data-mode="fill" class="sel">Progress</button>'
+    +'<button data-action="clkpop-mode" data-mode="faction">Contested</button>'
+    +'</div>'
+    +'<label id="cp-color-label">Color</label><input type="color" id="cp-color" value="#c8922a">'
+    +'<div class="modal-foot"><button class="btn" data-action="clkpop-cancel">Cancel</button>'
+    +'<button class="btn accent" data-action="clkpop-create">Create</button></div>';
+  document.body.appendChild(pop);
+  positionPopover(pop,e);
+  const nm=document.getElementById('cp-name'); nm.focus();
+  nm.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ submitClockPopover(); }});
+}
+function positionPopover(pop,e){
+  const x=Math.min(window.innerWidth-250,(e?e.clientX:300));
+  const y=Math.min(window.innerHeight-260,(e?e.clientY:200));
+  pop.style.left=Math.max(10,x)+'px';
+  pop.style.top=Math.max(10,y)+'px';
+}
+function submitClockPopover(){
+  const name=document.getElementById('cp-name').value.trim()||'Clock';
+  const size=parseInt(document.querySelector('#cp-size button.sel').getAttribute('data-size'),10);
+  const color=document.getElementById('cp-color').value;
+  const mode=document.querySelector('#cp-mode button.sel').getAttribute('data-mode');
+  const clock={id:uid(),name,size,color,filled:0,status:'active',mode};
+  if(mode==='faction') clock.segs=new Array(size).fill(null);
+  if(clockPopTarget.type==='scene'){
+    const s=state.scenes.find(x=>x.id===clockPopTarget.sceneId);
+    if(s){ s.clocks.push(clock); persist('scenes'); }
+  }else{
+    state.standalone.push(clock); persist('standalone');
+  }
+  closeClockPopover(); renderWorkspace();
+}
+function openClockEdit(id,e){
+  closeClockPopover();
+  const found=findClock(id); if(!found) return;
+  const c=found.clock;
+  clockPopTarget={editId:id};
+  const pop=document.createElement('div');
+  pop.id='clock-pop';
+  const m=c.mode||'fill';
+  pop.innerHTML='<div style="font-weight:600;letter-spacing:1px;color:#bbb;margin-bottom:4px;">Edit Clock</div>'
+    +'<label>Name</label><input type="text" id="cp-name" value="'+esc(c.name)+'">'
+    +'<label>Type</label><div class="seg-ctrl" id="cp-mode">'
+    +'<button data-action="clkpop-mode" data-mode="fill"'+(m!=='faction'?' class="sel"':'')+'>Progress</button>'
+    +'<button data-action="clkpop-mode" data-mode="faction"'+(m==='faction'?' class="sel"':'')+'>Contested</button>'
+    +'</div>'
+    +'<label id="cp-color-label">Color</label><input type="color" id="cp-color" value="'+c.color+'">'
+    +'<div style="font-size:11px;color:#666;margin-top:6px;">Size locked at '+c.size+' segments</div>'
+    +'<div class="modal-foot"><button class="btn" data-action="clkedit-cancel">Cancel</button>'
+    +'<button class="btn accent" data-action="clkedit-save">Save</button></div>';
+  document.body.appendChild(pop);
+  positionPopover(pop,e);
+  const nm=document.getElementById('cp-name'); nm.focus(); nm.select();
+  nm.addEventListener('keydown',ev=>{ if(ev.key==='Enter') submitClockEdit(); });
+}
+function submitClockEdit(){
+  const found=findClock(clockPopTarget.editId); if(found){
+    const c=found.clock;
+    c.name=document.getElementById('cp-name').value.trim()||c.name;
+    c.color=document.getElementById('cp-color').value;
+    const mode=document.querySelector('#cp-mode button.sel').getAttribute('data-mode');
+    c.mode=mode;
+    if(mode==='faction') ensureSegs(c);
+    persistClockLoc(found);
+  }
+  closeClockPopover(); renderWorkspace();
+}
+function closeClockPopover(){
+  const p=document.getElementById('clock-pop'); if(p) p.remove();
+  clockPopTarget=null;
+}
+/* close popover when clicking outside it */
+root.addEventListener('mousedown',e=>{
+  const p=document.getElementById('clock-pop');
+  if(p && !p.contains(e.target) && !e.target.closest('[data-action="clk-edit"]')
+     && !e.target.closest('[data-action="new-standalone"]') && !e.target.closest('[data-action="scene-add-clock"]')){
+    closeClockPopover();
+  }
+});
+
+/* link label edit (inline html input over svg) */
+function editLinkLabel(i){
+  const lk=state.links[i]; if(!lk) return;
+  const svg=document.getElementById('connector-svg');
+  const txt=svg.querySelector('text[data-link="'+i+'"][data-action="link-label"]');
+  if(!txt) return;
+  const x=parseFloat(txt.getAttribute('x')); const y=parseFloat(txt.getAttribute('y'));
+  const scroll=document.getElementById('ws-scroll');
+  const input=document.createElement('input');
+  input.type='text'; input.value=lk.label||''; input.className='inline-input link-label-input';
+  input.style.left=(x-40)+'px'; input.style.top=(y-12)+'px'; input.style.width='80px';
+  scroll.appendChild(input); input.focus(); input.select();
+  let done=false;
+  function fin(save){ if(done)return; done=true;
+    if(save){ lk.label=input.value.trim(); persist('links'); }
+    input.remove(); renderWorkspace();
+  }
+  input.addEventListener('keydown',ev=>{ if(ev.key==='Enter')fin(true); else if(ev.key==='Escape')fin(false); });
+  input.addEventListener('blur',()=>fin(true));
+}
+
+/* ======================================================================
+   BOOT
+   ====================================================================== */
+loadState();
+initDefaults();
+renderReference();
+renderAll();
+
+})();
+</script>
+</body>
+</html>
